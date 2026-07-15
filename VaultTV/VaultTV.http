@@ -1,0 +1,6 @@
+@VaultTV_HostAddress = http://localhost:5194
+
+GET {{VaultTV_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
