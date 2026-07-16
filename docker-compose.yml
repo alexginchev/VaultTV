@@ -1,0 +1,29 @@
+services:
+  vaulttv:
+    image: ${DOCKER_REGISTRY-}vaulttv
+    build:
+      context: .
+      dockerfile: VaultTV/Dockerfile
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=VaultTVDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True
+      - Jwt__Key=5ocUoKxKl0e9vsdemNzfnuGX9FpjMRtfcKDFJJodCBY=
+      - Jwt__Issuer=VaultTV
+      - Jwt__Audience=VaultTV
+    volumes:
+      - vaulttv-uploads:/app/uploads
+    depends_on:
+      - sqlserver
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong!Passw0rd
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserverdata:/var/opt/mssql
+
+volumes:
+  sqlserverdata:
+  vaulttv-uploads:

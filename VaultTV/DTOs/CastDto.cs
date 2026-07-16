@@ -1,6 +1,8 @@
-﻿namespace VaultTV.DTOs
+﻿namespace VaultTV.DTOs;
+
+public class CreateCastDto
 {
-    public class CastDto
-    {
-    }
+    public int MediaId { get; set; }
+    public int ActorId { get; set; }
+    public string? Role { get; set; }
 }
