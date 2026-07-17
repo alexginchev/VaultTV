@@ -91,4 +91,53 @@ public class ActorsController : ControllerBase
         await _context.SaveChangesAsync();
         return NoContent();
     }
+    [Authorize(Roles = "Admin")]
+    [HttpPost("import")]
+    public async Task<ActionResult<ActorImportResultDto>> Import(ActorImportRequestDto dto)
+    {
+        var result = new ActorImportResultDto();
+
+        // Load existing names once, lowercase, to check duplicates in-memory instead of one query per row
+        var existingNames = await _context.Actors
+            .Select(a => a.Name.ToLower())
+            .ToListAsync();
+
+        var existingSet = new HashSet<string>(existingNames);
+        var newActors = new List<Actor>();
+
+        foreach (var item in dto.Actors)
+        {
+            if (string.IsNullOrWhiteSpace(item.Name))
+            {
+                result.Skipped++;
+                continue;
+            }
+
+            var normalizedName = item.Name.Trim().ToLower();
+
+            if (existingSet.Contains(normalizedName))
+            {
+                result.Skipped++;
+                result.SkippedNames.Add(item.Name);
+                continue;
+            }
+
+            newActors.Add(new Actor
+            {
+                Name = item.Name.Trim(),
+                Born = item.Born,
+                Nationality = item.Nationality,
+                Bio = item.Bio,
+                IsIncomplete = false // came from a real data source, not auto-created
+            });
+
+            existingSet.Add(normalizedName); // guards against duplicates *within* the same import batch too
+        }
+
+        _context.Actors.AddRange(newActors);
+        await _context.SaveChangesAsync();
+
+        result.Imported = newActors.Count;
+        return Ok(result);
+    }
 }
