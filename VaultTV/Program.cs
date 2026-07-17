@@ -72,7 +72,9 @@ app.UseStaticFiles(); // serves wwwroot by default
 var uploadsPath = Path.Combine(builder.Environment.ContentRootPath, "uploads");
 Directory.CreateDirectory(Path.Combine(uploadsPath, "posters"));
 Directory.CreateDirectory(Path.Combine(uploadsPath, "backdrops"));
-
+Directory.CreateDirectory(Path.Combine(uploadsPath, "posters"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "backdrops"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "avatars"));
 app.UseStaticFiles(); // serves wwwroot by default
 
 app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions

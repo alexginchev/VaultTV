@@ -11,6 +11,7 @@ public class FileService
         _uploadsRoot = Path.Combine(_env.ContentRootPath, "uploads");
         Directory.CreateDirectory(Path.Combine(_uploadsRoot, "posters"));
         Directory.CreateDirectory(Path.Combine(_uploadsRoot, "backdrops"));
+        Directory.CreateDirectory(Path.Combine(_uploadsRoot, "avatars"));
     }
 
     public async Task<string> SaveImageAsync(IFormFile file, string subfolder)
@@ -38,4 +39,4 @@ public class FileService
         var fullPath = Path.Combine(_env.ContentRootPath, relativeUrl.TrimStart('/'));
         if (File.Exists(fullPath)) File.Delete(fullPath);
     }
-}
+}   
