@@ -9,5 +9,6 @@ public class Actor
     public string? Bio { get; set; }
     public bool IsIncomplete { get; set; } = false;
 
+    public int? TopRank { get; set; } // 1-10, or null if not currently ranked
     public ICollection<MediaCast> Appearances { get; set; } = new List<MediaCast>();
 }

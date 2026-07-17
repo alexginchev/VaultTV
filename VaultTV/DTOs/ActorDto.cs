@@ -8,6 +8,7 @@ public class ActorDto
     public string? Nationality { get; set; }
     public string? Bio { get; set; }
     public bool IsIncomplete { get; set; }
+    public int? TopRank { get; set; }
 }
 
 public class CreateActorDto
