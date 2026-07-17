@@ -7,6 +7,7 @@ public class ActorDto
     public string? Born { get; set; }
     public string? Nationality { get; set; }
     public string? Bio { get; set; }
+    public bool IsIncomplete { get; set; }
 }
 
 public class CreateActorDto

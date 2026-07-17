@@ -15,11 +15,36 @@ public class ActorsController : ControllerBase
     public ActorsController(AppDbContext context) => _context = context;
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ActorDto>>> GetAll()
+    public async Task<ActionResult<IEnumerable<ActorDto>>> GetAll(
+    [FromQuery] string? search,
+    [FromQuery] string sortBy = "name",
+    [FromQuery] string order = "asc",
+    [FromQuery] bool? incompleteOnly = null)
     {
-        var actors = await _context.Actors
-            .Select(a => new ActorDto { Id = a.Id, Name = a.Name, Born = a.Born, Nationality = a.Nationality, Bio = a.Bio })
+        var query = _context.Actors.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(a => a.Name.Contains(search));
+
+        if (incompleteOnly == true)
+            query = query.Where(a => a.IsIncomplete);
+
+        query = order.ToLower() == "desc"
+            ? query.OrderByDescending(a => a.Name)
+            : query.OrderBy(a => a.Name);
+
+        var actors = await query
+            .Select(a => new ActorDto
+            {
+                Id = a.Id,
+                Name = a.Name,
+                Born = a.Born,
+                Nationality = a.Nationality,
+                Bio = a.Bio,
+                IsIncomplete = a.IsIncomplete
+            })
             .ToListAsync();
+
         return Ok(actors);
     }
 

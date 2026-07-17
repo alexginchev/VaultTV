@@ -14,11 +14,13 @@ public class MediaController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly FileService _fileService;
+    private readonly NotificationService _notificationService;
 
-    public MediaController(AppDbContext context, FileService fileService)
+    public MediaController(AppDbContext context, FileService fileService, NotificationService notificationService)
     {
         _context = context;
         _fileService = fileService;
+        _notificationService = notificationService;
     }
 
     private static MediaDto ToDto(Media m) => new()
@@ -165,28 +167,56 @@ public class MediaController : ControllerBase
     public async Task<IActionResult> AddCastMember(CreateCastDto dto)
     {
         var mediaExists = await _context.Media.AnyAsync(m => m.Id == dto.MediaId);
-        var actorExists = await _context.Actors.AnyAsync(a => a.Id == dto.ActorId);
         if (!mediaExists) return BadRequest("Media not found.");
-        if (!actorExists) return BadRequest("Actor not found.");
+
+        if (string.IsNullOrWhiteSpace(dto.ActorName))
+            return BadRequest("Actor name is required.");
+
+        // Case-insensitive lookup, so "tom hanks" matches an existing "Tom Hanks"
+        var actor = await _context.Actors
+            .FirstOrDefaultAsync(a => a.Name.ToLower() == dto.ActorName.ToLower());
+
+        bool wasAutoCreated = false;
+
+        if (actor == null)
+        {
+            actor = new Actor { Name = dto.ActorName, IsIncomplete = true };
+            _context.Actors.Add(actor);
+            await _context.SaveChangesAsync(); // save now so actor.Id is populated below
+            wasAutoCreated = true;
+        }
 
         var alreadyCast = await _context.MediaCasts
-            .AnyAsync(c => c.MediaId == dto.MediaId && c.ActorId == dto.ActorId);
+            .AnyAsync(c => c.MediaId == dto.MediaId && c.ActorId == actor.Id);
         if (alreadyCast) return BadRequest("This actor is already listed for this media.");
 
-        var cast = new MediaCast { MediaId = dto.MediaId, ActorId = dto.ActorId, Role = dto.Role };
+        var cast = new MediaCast { MediaId = dto.MediaId, ActorId = actor.Id, Role = dto.Role };
         _context.MediaCasts.Add(cast);
         await _context.SaveChangesAsync();
+
+        if (wasAutoCreated)
+        {
+            await _notificationService.NotifyAsync(
+                $"Actor \"{actor.Name}\" was auto-created and needs additional details.",
+                "IncompleteActor",
+                actor.Id
+            );
+        }
+
         return Ok();
     }
-
     [Authorize(Roles = "Admin")]
     [HttpDelete("cast/{castId}")]
     public async Task<IActionResult> RemoveCastMember(int castId)
     {
         var cast = await _context.MediaCasts.FindAsync(castId);
-        if (cast == null) return NotFound();
+
+        if (cast == null)
+            return NotFound();
+
         _context.MediaCasts.Remove(cast);
         await _context.SaveChangesAsync();
+
         return NoContent();
     }
 }
