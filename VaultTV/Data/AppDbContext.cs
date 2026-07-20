@@ -16,8 +16,30 @@ public class AppDbContext : DbContext
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
 
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<Genre> Genres => Set<Genre>();
+    public DbSet<MediaGenre> MediaGenres => Set<MediaGenre>();
+
+    // ...inside OnModelCreating:
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<MediaGenre>().HasKey(mg => new { mg.MediaId, mg.GenreId });
+
+        modelBuilder.Entity<MediaGenre>()
+            .HasOne(mg => mg.Media)
+            .WithMany(m => m.GenreLinks)
+            .HasForeignKey(mg => mg.MediaId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<MediaGenre>()
+        .HasOne(mg => mg.Genre)
+        .WithMany(g => g.MediaLinks)
+        .HasForeignKey(mg => mg.GenreId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Genre>()
+        .HasIndex(g => g.Name)
+        .IsUnique();
         modelBuilder.Entity<MediaCast>()
             .HasIndex(mc => new { mc.MediaId, mc.ActorId })
             .IsUnique();

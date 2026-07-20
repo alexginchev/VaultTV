@@ -32,9 +32,7 @@ public class MediaController : ControllerBase
         Rating = m.Rating,
         Description = m.Description,
         Director = m.Director,
-        Genres = string.IsNullOrEmpty(m.Genres)
-            ? new List<string>()
-            : m.Genres.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList(),
+        Genres = m.GenreLinks.Select(gl => gl.Genre.Name).ToList(),
         PosterUrl = m.PosterUrl,
         BackdropUrl = m.BackdropUrl,
         Seasons = m.Seasons,
@@ -45,22 +43,46 @@ public class MediaController : ControllerBase
         {
             ActorId = c.ActorId,
             ActorName = c.Actor.Name,
-            Role = c.Role
+            Role = c.Role,
+            TopRank = c.Actor.TopRank
         }).ToList()
     };
+
+    private async Task SetGenresAsync(Media media, List<string> genreNames)
+    {
+        // Clear existing links, then rebuild — simplest correct approach for a small genre list per media
+        _context.MediaGenres.RemoveRange(media.GenreLinks);
+
+        foreach (var name in genreNames.Select(n => n.Trim()).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())
+        {
+            var genre = await _context.Genres.FirstOrDefaultAsync(g => g.Name.ToLower() == name.ToLower());
+            if (genre == null)
+            {
+                genre = new Genre { Name = name };
+                _context.Genres.Add(genre);
+                await _context.SaveChangesAsync();
+            }
+            media.GenreLinks.Add(new MediaGenre { MediaId = media.Id, GenreId = genre.Id });
+        }
+    }
 
     // Public — anyone can browse
     [HttpGet]
     public async Task<ActionResult<IEnumerable<MediaDto>>> GetAll()
     {
-        var media = await _context.Media.Include(m => m.Cast).ThenInclude(c => c.Actor).ToListAsync();
+        var media = await _context.Media
+            .Include(m => m.Cast).ThenInclude(c => c.Actor)
+            .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
+            .ToListAsync();
         return Ok(media.Select(ToDto));
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<MediaDto>> GetById(int id)
     {
-        var media = await _context.Media.Include(m => m.Cast).ThenInclude(c => c.Actor)
+        var media = await _context.Media
+            .Include(m => m.Cast).ThenInclude(c => c.Actor)
+            .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (media == null) return NotFound();
         return Ok(ToDto(media));
@@ -79,7 +101,6 @@ public class MediaController : ControllerBase
             Rating = dto.Rating,
             Description = dto.Description,
             Director = dto.Director,
-            Genres = string.Join(",", dto.Genres),
             Seasons = dto.Seasons,
             Runtime = dto.Runtime,
             Network = dto.Network,
@@ -87,16 +108,26 @@ public class MediaController : ControllerBase
         };
 
         _context.Media.Add(media);
+        await _context.SaveChangesAsync(); // need media.Id before linking genres
+
+        await SetGenresAsync(media, dto.GenreNames);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetById), new { id = media.Id }, ToDto(media));
+        var full = await _context.Media
+            .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
+            .Include(m => m.Cast).ThenInclude(c => c.Actor)
+            .FirstAsync(m => m.Id == media.Id);
+
+        return CreatedAtAction(nameof(GetById), new { id = media.Id }, ToDto(full));
     }
 
     [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, CreateMediaDto dto)
     {
-        var media = await _context.Media.FindAsync(id);
+        var media = await _context.Media
+            .Include(m => m.GenreLinks)
+            .FirstOrDefaultAsync(m => m.Id == id);
         if (media == null) return NotFound();
 
         media.Title = dto.Title;
@@ -105,12 +136,12 @@ public class MediaController : ControllerBase
         media.Rating = dto.Rating;
         media.Description = dto.Description;
         media.Director = dto.Director;
-        media.Genres = string.Join(",", dto.Genres);
         media.Seasons = dto.Seasons;
         media.Runtime = dto.Runtime;
         media.Network = dto.Network;
         media.Status = dto.Status;
 
+        await SetGenresAsync(media, dto.GenreNames);
         await _context.SaveChangesAsync();
         return NoContent();
     }
@@ -135,7 +166,9 @@ public class MediaController : ControllerBase
     [HttpPost("{id}/poster")]
     public async Task<ActionResult<MediaDto>> UploadPoster(int id, IFormFile file)
     {
-        var media = await _context.Media.Include(m => m.Cast).ThenInclude(c => c.Actor)
+        var media = await _context.Media
+            .Include(m => m.Cast).ThenInclude(c => c.Actor)
+            .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (media == null) return NotFound();
 
@@ -150,7 +183,9 @@ public class MediaController : ControllerBase
     [HttpPost("{id}/backdrop")]
     public async Task<ActionResult<MediaDto>> UploadBackdrop(int id, IFormFile file)
     {
-        var media = await _context.Media.Include(m => m.Cast).ThenInclude(c => c.Actor)
+        var media = await _context.Media
+            .Include(m => m.Cast).ThenInclude(c => c.Actor)
+            .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (media == null) return NotFound();
 
@@ -205,6 +240,7 @@ public class MediaController : ControllerBase
 
         return Ok();
     }
+
     [Authorize(Roles = "Admin")]
     [HttpDelete("cast/{castId}")]
     public async Task<IActionResult> RemoveCastMember(int castId)

@@ -9,7 +9,7 @@ public class Media
     public string? Rating { get; set; }
     public string? Description { get; set; }
     public string? Director { get; set; }
-    public string? Genres { get; set; } // stored as comma-separated string, split in the DTO layer
+    public ICollection<MediaGenre> GenreLinks { get; set; } = new List<MediaGenre>();
 
     public string? PosterUrl { get; set; }
     public string? BackdropUrl { get; set; }
