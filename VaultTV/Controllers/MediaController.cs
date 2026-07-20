@@ -91,6 +91,8 @@ public class MediaController : ControllerBase
     // Admin-only — create/edit/delete
     [Authorize(Roles = "Admin")]
     [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [HttpPost]
     public async Task<ActionResult<MediaDto>> Create(CreateMediaDto dto)
     {
         var media = new Media
@@ -113,8 +115,7 @@ public class MediaController : ControllerBase
         await SetGenresAsync(media, dto.GenreNames);
         await _context.SaveChangesAsync();
 
-        var full = await _context.Media
-            .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
+        var full = await _context.Media.Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
             .Include(m => m.Cast).ThenInclude(c => c.Actor)
             .FirstAsync(m => m.Id == media.Id);
 
