@@ -31,7 +31,8 @@ public class MediaController : ControllerBase
         Year = m.Year,
         Rating = m.Rating,
         Description = m.Description,
-        Director = m.Director,
+        DirectorId = m.DirectorId,
+        DirectorName = m.Director?.Name,
         Genres = m.GenreLinks.Select(gl => gl.Genre.Name).ToList(),
         PosterUrl = m.PosterUrl,
         BackdropUrl = m.BackdropUrl,
@@ -50,7 +51,6 @@ public class MediaController : ControllerBase
 
     private async Task SetGenresAsync(Media media, List<string> genreNames)
     {
-        // Clear existing links, then rebuild — simplest correct approach for a small genre list per media
         _context.MediaGenres.RemoveRange(media.GenreLinks);
 
         foreach (var name in genreNames.Select(n => n.Trim()).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())
@@ -66,6 +66,28 @@ public class MediaController : ControllerBase
         }
     }
 
+    private async Task SetDirectorAsync(Media media, string? directorName)
+    {
+        if (string.IsNullOrWhiteSpace(directorName))
+        {
+            media.DirectorId = null;
+            return;
+        }
+
+        var trimmedName = directorName.Trim();
+        var director = await _context.Directors
+            .FirstOrDefaultAsync(d => d.Name.ToLower() == trimmedName.ToLower());
+
+        if (director == null)
+        {
+            director = new Director { Name = trimmedName };
+            _context.Directors.Add(director);
+            await _context.SaveChangesAsync();
+        }
+
+        media.DirectorId = director.Id;
+    }
+
     // Public — anyone can browse
     [HttpGet]
     public async Task<ActionResult<IEnumerable<MediaDto>>> GetAll()
@@ -73,6 +95,7 @@ public class MediaController : ControllerBase
         var media = await _context.Media
             .Include(m => m.Cast).ThenInclude(c => c.Actor)
             .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
+            .Include(m => m.Director)
             .ToListAsync();
         return Ok(media.Select(ToDto));
     }
@@ -83,6 +106,7 @@ public class MediaController : ControllerBase
         var media = await _context.Media
             .Include(m => m.Cast).ThenInclude(c => c.Actor)
             .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
+            .Include(m => m.Director)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (media == null) return NotFound();
         return Ok(ToDto(media));
@@ -100,7 +124,6 @@ public class MediaController : ControllerBase
             Year = dto.Year,
             Rating = dto.Rating,
             Description = dto.Description,
-            Director = dto.Director,
             Seasons = dto.Seasons,
             Runtime = dto.Runtime,
             Network = dto.Network,
@@ -111,11 +134,13 @@ public class MediaController : ControllerBase
         await _context.SaveChangesAsync(); // need media.Id before linking genres
 
         await SetGenresAsync(media, dto.GenreNames);
+        await SetDirectorAsync(media, dto.DirectorName);
         await _context.SaveChangesAsync();
 
         var full = await _context.Media
             .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
             .Include(m => m.Cast).ThenInclude(c => c.Actor)
+            .Include(m => m.Director)
             .FirstAsync(m => m.Id == media.Id);
 
         return CreatedAtAction(nameof(GetById), new { id = media.Id }, ToDto(full));
@@ -135,13 +160,13 @@ public class MediaController : ControllerBase
         media.Year = dto.Year;
         media.Rating = dto.Rating;
         media.Description = dto.Description;
-        media.Director = dto.Director;
         media.Seasons = dto.Seasons;
         media.Runtime = dto.Runtime;
         media.Network = dto.Network;
         media.Status = dto.Status;
 
         await SetGenresAsync(media, dto.GenreNames);
+        await SetDirectorAsync(media, dto.DirectorName);
         await _context.SaveChangesAsync();
         return NoContent();
     }
@@ -169,10 +194,11 @@ public class MediaController : ControllerBase
         var media = await _context.Media
             .Include(m => m.Cast).ThenInclude(c => c.Actor)
             .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
+            .Include(m => m.Director)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (media == null) return NotFound();
 
-        _fileService.DeleteImage(media.PosterUrl); // replace old file if one existed
+        _fileService.DeleteImage(media.PosterUrl);
         media.PosterUrl = await _fileService.SaveImageAsync(file, "posters");
 
         await _context.SaveChangesAsync();
@@ -186,6 +212,7 @@ public class MediaController : ControllerBase
         var media = await _context.Media
             .Include(m => m.Cast).ThenInclude(c => c.Actor)
             .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
+            .Include(m => m.Director)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (media == null) return NotFound();
 
@@ -207,7 +234,6 @@ public class MediaController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.ActorName))
             return BadRequest("Actor name is required.");
 
-        // Case-insensitive lookup, so "tom hanks" matches an existing "Tom Hanks"
         var actor = await _context.Actors
             .FirstOrDefaultAsync(a => a.Name.ToLower() == dto.ActorName.ToLower());
 
@@ -217,7 +243,7 @@ public class MediaController : ControllerBase
         {
             actor = new Actor { Name = dto.ActorName, IsIncomplete = true };
             _context.Actors.Add(actor);
-            await _context.SaveChangesAsync(); // save now so actor.Id is populated below
+            await _context.SaveChangesAsync();
             wasAutoCreated = true;
         }
 

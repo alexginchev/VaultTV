@@ -18,8 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<MediaGenre> MediaGenres => Set<MediaGenre>();
-
-    // ...inside OnModelCreating:
+    public DbSet<Director> Directors => Set<Director>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,14 +31,27 @@ public class AppDbContext : DbContext
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<MediaGenre>()
-        .HasOne(mg => mg.Genre)
-        .WithMany(g => g.MediaLinks)
-        .HasForeignKey(mg => mg.GenreId)
-        .OnDelete(DeleteBehavior.Cascade);
+            .HasOne(mg => mg.Genre)
+            .WithMany(g => g.MediaLinks)
+            .HasForeignKey(mg => mg.GenreId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Genre>()
-        .HasIndex(g => g.Name)
-        .IsUnique();
+            .HasIndex(g => g.Name)
+            .IsUnique();
+
+        // A movie/show can have a director; deleting a director should NOT delete their media —
+        // just null out the reference, so historical media entries aren't destroyed.
+        modelBuilder.Entity<Media>()
+            .HasOne(m => m.Director)
+            .WithMany(d => d.Media)
+            .HasForeignKey(m => m.DirectorId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Director>()
+            .HasIndex(d => d.Name)
+            .IsUnique();
+
         modelBuilder.Entity<MediaCast>()
             .HasIndex(mc => new { mc.MediaId, mc.ActorId })
             .IsUnique();

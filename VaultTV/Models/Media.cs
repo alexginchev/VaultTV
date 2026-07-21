@@ -8,7 +8,9 @@ public class Media
     public string? Year { get; set; }
     public string? Rating { get; set; }
     public string? Description { get; set; }
-    public string? Director { get; set; }
+
+    public int? DirectorId { get; set; }
+    public Director? Director { get; set; }
 
     public string? PosterUrl { get; set; }
     public string? BackdropUrl { get; set; }

@@ -8,7 +8,8 @@ public class MediaDto
     public string? Year { get; set; }
     public string? Rating { get; set; }
     public string? Description { get; set; }
-    public string? Director { get; set; }
+    public int? DirectorId { get; set; }
+    public string? DirectorName { get; set; }
     public List<string> Genres { get; set; } = new();
     public string? PosterUrl { get; set; }
     public string? BackdropUrl { get; set; }
@@ -34,7 +35,7 @@ public class CreateMediaDto
     public string? Year { get; set; }
     public string? Rating { get; set; }
     public string? Description { get; set; }
-    public string? Director { get; set; }
+    public string? DirectorName { get; set; } // looked up or auto-created, same pattern as actors
     public List<string> GenreNames { get; set; } = new();
     public string? Seasons { get; set; }
     public string? Runtime { get; set; }
