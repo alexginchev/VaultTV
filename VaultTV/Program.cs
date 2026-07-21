@@ -44,7 +44,6 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<FileService>();
 builder.Services.AddScoped<NotificationService>();
 
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -62,19 +61,19 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 }
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-app.UseStaticFiles(); // serves wwwroot by default
+
 var uploadsPath = Path.Combine(builder.Environment.ContentRootPath, "uploads");
 Directory.CreateDirectory(Path.Combine(uploadsPath, "posters"));
 Directory.CreateDirectory(Path.Combine(uploadsPath, "backdrops"));
-Directory.CreateDirectory(Path.Combine(uploadsPath, "posters"));
-Directory.CreateDirectory(Path.Combine(uploadsPath, "backdrops"));
 Directory.CreateDirectory(Path.Combine(uploadsPath, "avatars"));
+
 app.UseStaticFiles(); // serves wwwroot by default
 
 app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
@@ -82,12 +81,7 @@ app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
     RequestPath = "/uploads"
 });
-app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.Combine(builder.Environment.ContentRootPath, "uploads")),
-    RequestPath = "/uploads"
-});
+
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
