@@ -1,6 +1,15 @@
-﻿namespace VaultTV.DTOs
+﻿namespace VaultTV.DTOs;
+
+public class AdminUserListDto
 {
-    public class AdminUserDto
-    {
-    }
+    public int Id { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
+public class UpdateUserRoleDto
+{
+    public string Role { get; set; } = string.Empty; // "User" or "Admin"
 }

@@ -19,6 +19,8 @@ public class AppDbContext : DbContext
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<MediaGenre> MediaGenres => Set<MediaGenre>();
     public DbSet<Director> Directors => Set<Director>();
+    public DbSet<Season> Seasons => Set<Season>();
+    public DbSet<Episode> Episodes => Set<Episode>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -99,6 +101,28 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
+
+        // A media can't have two seasons with the same number
+        modelBuilder.Entity<Season>()
+            .HasIndex(s => new { s.MediaId, s.SeasonNumber })
+            .IsUnique();
+
+        modelBuilder.Entity<Season>()
+            .HasOne(s => s.Media)
+            .WithMany(m => m.Seasons)
+            .HasForeignKey(s => s.MediaId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // A season can't have two episodes with the same number
+        modelBuilder.Entity<Episode>()
+            .HasIndex(e => new { e.SeasonId, e.EpisodeNumber })
+            .IsUnique();
+
+        modelBuilder.Entity<Episode>()
+            .HasOne(e => e.Season)
+            .WithMany(s => s.Episodes)
+            .HasForeignKey(e => e.SeasonId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         base.OnModelCreating(modelBuilder);
     }

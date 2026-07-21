@@ -13,11 +13,14 @@ public class MediaDto
     public List<string> Genres { get; set; } = new();
     public string? PosterUrl { get; set; }
     public string? BackdropUrl { get; set; }
-    public string? Seasons { get; set; }
+    public string? TrailerUrl { get; set; }
+    public bool IsFeatured { get; set; }
+    public bool IsTrending { get; set; }
     public string? Runtime { get; set; }
     public string? Network { get; set; }
     public string? Status { get; set; }
     public List<CastMemberDto> Cast { get; set; } = new();
+    public List<SeasonDto> Seasons { get; set; } = new();
 }
 
 public class CastMemberDto
@@ -35,9 +38,11 @@ public class CreateMediaDto
     public string? Year { get; set; }
     public string? Rating { get; set; }
     public string? Description { get; set; }
-    public string? DirectorName { get; set; } // looked up or auto-created, same pattern as actors
+    public string? DirectorName { get; set; }
     public List<string> GenreNames { get; set; } = new();
-    public string? Seasons { get; set; }
+    public string? TrailerUrl { get; set; }
+    public bool IsFeatured { get; set; } = false;
+    public bool IsTrending { get; set; } = false;
     public string? Runtime { get; set; }
     public string? Network { get; set; }
     public string? Status { get; set; }

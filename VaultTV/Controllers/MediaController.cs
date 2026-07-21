@@ -36,7 +36,9 @@ public class MediaController : ControllerBase
         Genres = m.GenreLinks.Select(gl => gl.Genre.Name).ToList(),
         PosterUrl = m.PosterUrl,
         BackdropUrl = m.BackdropUrl,
-        Seasons = m.Seasons,
+        TrailerUrl = m.TrailerUrl,
+        IsFeatured = m.IsFeatured,
+        IsTrending = m.IsTrending,
         Runtime = m.Runtime,
         Network = m.Network,
         Status = m.Status,
@@ -46,7 +48,30 @@ public class MediaController : ControllerBase
             ActorName = c.Actor.Name,
             Role = c.Role,
             TopRank = c.Actor.TopRank
-        }).ToList()
+        }).ToList(),
+        Seasons = m.Seasons
+            .OrderBy(s => s.SeasonNumber)
+            .Select(s => new SeasonDto
+            {
+                Id = s.Id,
+                SeasonNumber = s.SeasonNumber,
+                Title = s.Title,
+                Description = s.Description,
+                PosterUrl = s.PosterUrl,
+                Episodes = s.Episodes
+                    .OrderBy(e => e.EpisodeNumber)
+                    .Select(e => new EpisodeDto
+                    {
+                        Id = e.Id,
+                        EpisodeNumber = e.EpisodeNumber,
+                        Title = e.Title,
+                        Description = e.Description,
+                        Runtime = e.Runtime,
+                        AirDate = e.AirDate,
+                        ThumbnailUrl = e.ThumbnailUrl,
+                        VideoUrl = e.VideoUrl
+                    }).ToList()
+            }).ToList()
     };
 
     private async Task SetGenresAsync(Media media, List<string> genreNames)
@@ -96,6 +121,7 @@ public class MediaController : ControllerBase
             .Include(m => m.Cast).ThenInclude(c => c.Actor)
             .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
             .Include(m => m.Director)
+            .Include(m => m.Seasons).ThenInclude(s => s.Episodes)
             .ToListAsync();
         return Ok(media.Select(ToDto));
     }
@@ -107,9 +133,37 @@ public class MediaController : ControllerBase
             .Include(m => m.Cast).ThenInclude(c => c.Actor)
             .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
             .Include(m => m.Director)
+            .Include(m => m.Seasons).ThenInclude(s => s.Episodes)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (media == null) return NotFound();
         return Ok(ToDto(media));
+    }
+
+    // Featured/Trending — public read-only convenience endpoints
+    [HttpGet("featured")]
+    public async Task<ActionResult<IEnumerable<MediaDto>>> GetFeatured()
+    {
+        var media = await _context.Media
+            .Include(m => m.Cast).ThenInclude(c => c.Actor)
+            .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
+            .Include(m => m.Director)
+            .Include(m => m.Seasons).ThenInclude(s => s.Episodes)
+            .Where(m => m.IsFeatured)
+            .ToListAsync();
+        return Ok(media.Select(ToDto));
+    }
+
+    [HttpGet("trending")]
+    public async Task<ActionResult<IEnumerable<MediaDto>>> GetTrending()
+    {
+        var media = await _context.Media
+            .Include(m => m.Cast).ThenInclude(c => c.Actor)
+            .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
+            .Include(m => m.Director)
+            .Include(m => m.Seasons).ThenInclude(s => s.Episodes)
+            .Where(m => m.IsTrending)
+            .ToListAsync();
+        return Ok(media.Select(ToDto));
     }
 
     // Admin-only — create/edit/delete
@@ -124,7 +178,9 @@ public class MediaController : ControllerBase
             Year = dto.Year,
             Rating = dto.Rating,
             Description = dto.Description,
-            Seasons = dto.Seasons,
+            TrailerUrl = dto.TrailerUrl,
+            IsFeatured = dto.IsFeatured,
+            IsTrending = dto.IsTrending,
             Runtime = dto.Runtime,
             Network = dto.Network,
             Status = dto.Status
@@ -141,6 +197,7 @@ public class MediaController : ControllerBase
             .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
             .Include(m => m.Cast).ThenInclude(c => c.Actor)
             .Include(m => m.Director)
+            .Include(m => m.Seasons).ThenInclude(s => s.Episodes)
             .FirstAsync(m => m.Id == media.Id);
 
         return CreatedAtAction(nameof(GetById), new { id = media.Id }, ToDto(full));
@@ -160,7 +217,9 @@ public class MediaController : ControllerBase
         media.Year = dto.Year;
         media.Rating = dto.Rating;
         media.Description = dto.Description;
-        media.Seasons = dto.Seasons;
+        media.TrailerUrl = dto.TrailerUrl;
+        media.IsFeatured = dto.IsFeatured;
+        media.IsTrending = dto.IsTrending;
         media.Runtime = dto.Runtime;
         media.Network = dto.Network;
         media.Status = dto.Status;
@@ -195,6 +254,7 @@ public class MediaController : ControllerBase
             .Include(m => m.Cast).ThenInclude(c => c.Actor)
             .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
             .Include(m => m.Director)
+            .Include(m => m.Seasons).ThenInclude(s => s.Episodes)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (media == null) return NotFound();
 
@@ -213,6 +273,7 @@ public class MediaController : ControllerBase
             .Include(m => m.Cast).ThenInclude(c => c.Actor)
             .Include(m => m.GenreLinks).ThenInclude(gl => gl.Genre)
             .Include(m => m.Director)
+            .Include(m => m.Seasons).ThenInclude(s => s.Episodes)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (media == null) return NotFound();
 
